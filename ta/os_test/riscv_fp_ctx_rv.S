@@ -8,6 +8,15 @@
 
 #if defined(__riscv_flen) && __riscv_flen == 64
 
+/* Stores and loads of an integer register, of XLEN bits */
+#if __riscv_xlen == 64
+#define REG_S	sd
+#define REG_L	ld
+#else
+#define REG_S	sw
+#define REG_L	lw
+#endif
+
 /*
  * The whole point of these routines is to have the values actually sitting
  * in fs0..fs11 and fcsr across a call; from C the compiler would be free to
@@ -16,7 +25,8 @@
  * They operate on struct riscv_fp_ctx (see riscv_fp_ctx.h) through the
  * RISCV_FP_CTX_*_OFF offsets it defines, so the layout lives in one place.
  *
- * Stack frame of riscv_fp_ctx_roundtrip():
+ * Stack frame of riscv_fp_ctx_roundtrip(), with 8 bytes for ra and s0
+ * whatever XLEN is:
  *	   0	ra
  *	   8	s0
  *	  16	caller's fcsr
@@ -33,8 +43,8 @@
  */
 FUNC riscv_fp_ctx_roundtrip , :
 	addi	sp, sp, -128
-	sd	ra, 0(sp)
-	sd	s0, 8(sp)
+	REG_S	ra, 0(sp)
+	REG_S	s0, 8(sp)
 	/* Preserve the caller's own context before overwriting it */
 	frcsr	t0
 	sw	t0, 16(sp)
@@ -99,8 +109,8 @@ FUNC riscv_fp_ctx_roundtrip , :
 	fld	fs11, 112(sp)
 	lw	t0, 16(sp)
 	fscsr	t0
-	ld	ra, 0(sp)
-	ld	s0, 8(sp)
+	REG_L	ra, 0(sp)
+	REG_L	s0, 8(sp)
 	addi	sp, sp, 128
 	ret
 END_FUNC riscv_fp_ctx_roundtrip
